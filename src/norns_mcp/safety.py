@@ -105,7 +105,10 @@ def check_remote_argv(argv: list[str]) -> list[str]:
             raise UnsafeCommand(f"forbidden token {token!r} in {argv!r}")
         if token.startswith("--delete") or token == "-delete":
             raise UnsafeCommand(f"delete flag {token!r} in {argv!r}")
-    if prog == "find" and any(t in {"-exec", "-execdir", "-ok", "-okdir", "-fprint"} for t in argv):
+    if prog == "find" and any(
+        t in {"-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprint0", "-fprintf", "-fls"}
+        for t in argv
+    ):
         raise UnsafeCommand(f"find action not allowed: {argv!r}")
     if prog == "journalctl" and any(
         t.startswith(("--vacuum", "--rotate", "--flush", "--setup-keys", "--relinquish"))
