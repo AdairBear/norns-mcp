@@ -101,11 +101,15 @@ def build_server(ctl: NornsController) -> MCPServer:
 
     @mcp.tool()
     async def norns_logs(
-        unit: str = "matron", lines: Int = 100, since: str | None = None
+        unit: str = "matron",
+        lines: Int = 100,
+        since: str | None = None,
+        hide_repl_echo: bool = True,
     ) -> dict[str, Any]:
         """journalctl for norns-<unit>.service: matron (Lua, script errors), crone, sclang,
-        maiden, jack, watcher. lines 1-2000; since like '10 min ago' or '2026-10-20 18:00'."""
-        return await _call("norns_logs", ctl.logs, unit, lines, since)
+        maiden, jack, watcher. lines 1-2000; since like '10 min ago' or '2026-10-20 18:00'.
+        hide_repl_echo drops this server's own REPL traffic from the matron journal."""
+        return await _call("norns_logs", ctl.logs, unit, lines, since, hide_repl_echo)
 
     @mcp.tool()
     async def norns_dust_inventory(

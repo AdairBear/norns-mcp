@@ -54,6 +54,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("unit", nargs="?", default="matron", choices=LOG_UNITS)
     s.add_argument("-n", "--lines", type=int, default=100)
     s.add_argument("--since")
+    s.add_argument("--raw", action="store_true", help="keep norns-mcp's own REPL echo")
     s = sub.add_parser("inventory", help="dust inventory")
     s.add_argument("--compare-backup", action="store_true")
     s.add_argument("--hashes", action="store_true")
@@ -101,7 +102,7 @@ def run(ctl: NornsController, args: argparse.Namespace):
         case "get":
             return ctl.get_param(args.param_id)
         case "logs":
-            return ctl.logs(args.unit, args.lines, args.since)
+            return ctl.logs(args.unit, args.lines, args.since, not args.raw)
         case "inventory":
             return ctl.dust_inventory(args.compare_backup, args.hashes)
         case "screenshot":

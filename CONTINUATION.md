@@ -12,7 +12,8 @@
   474 extra on the norns are .git internals + 12 dotfiles. Deploy dry run: awake = 0 changes.
 - `print` reaches the REPL websocket; `io.write` does not (stdout closed in matron).
 - Not verified: every live write. Plan: docs/THOMAS_AT_THE_NORNS.md. OSC /param path unverified.
-- matron journal echoes REPL output, so our marker lines appear in `norns_logs matron`.
+- matron journal echoes REPL output; `norns_logs` hides norns-mcp's own echo by default (`--raw` keeps it).
+- Status also reports maiden's version (HTTP GET /api/v1: v1.1.6). A live load now reads matron's journal after the load line and fails if it shows a script error (`data.load_log`).
 - Also running on the norns, untouched: an older `~/norns-mcp-server` and `picoclaw` (:38905).
 
 ## Next

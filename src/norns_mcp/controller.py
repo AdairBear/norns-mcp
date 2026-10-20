@@ -13,10 +13,12 @@ Conventions (same as m8-mcp):
 from __future__ import annotations
 
 import hashlib
+import json
 import time
+import urllib.request
 from collections import defaultdict
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +38,8 @@ from norns_mcp.transports import Osc, Repl, Runner, Shell, ssh_base
 
 MAX_LOG_LINES = 2000
 MAX_READ_BYTES = 256 * 1024
+# matron prints these when a script fails (lua/core/script.lua, norns.lua; norns 231114).
+LOAD_ERROR_MARKS = ("load fail", "### ", "lua: ", "stack traceback", "error:", "script error")
 
 
 def _fail(message: str, **data: Any) -> ToolResult:
@@ -50,8 +54,11 @@ class NornsController:
     osc: Osc
     runner: Runner
     sleep: Callable[[float], None] = time.sleep
+    http_get: Callable[[str], str] = field(default=None)  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
+        if self.http_get is None:
+            self.http_get = _http_get
         self.deployer = Deployer(self.settings, self.shell, self.runner)
 
     # ── helpers ──────────────────────────────────────────────────────────────
@@ -75,6 +82,13 @@ class NornsController:
                 {"live": True, "sent": False, "would_send": would_send},
             )
         return None
+
+    def _maiden_version(self) -> str | None:
+        try:
+            raw = self.http_get(f"http://{self.settings.host}/api/v1")
+            return json.loads(raw).get("version")
+        except (OSError, ValueError, AttributeError):  # maiden down or not JSON
+            return None
 
     def _script_exists(self, folder: str, file: str) -> bool:
         res = self.shell.run(["test", "-f", f"{REMOTE_CODE}/{folder}/{file}.lua"])
@@ -103,6 +117,7 @@ class NornsController:
         except (ConnectionError, lua.LuaError) as exc:
             data["repl"] = False
             data["repl_error"] = str(exc)
+        data["maiden"] = self._maiden_version()
         ok = bool(data.get("ssh")) and bool(data.get("repl"))
         return ToolResult(ok, "norns reachable." if ok else "norns partly unreachable.", data)
 
@@ -225,7 +240,15 @@ class NornsController:
             {"id": param_id, "value": _number(row[1]), "display": row[2]},
         )
 
-    def logs(self, unit: str = "matron", lines: int = 100, since: str | None = None) -> ToolResult:
+    def logs(
+        self,
+        unit: str = "matron",
+        lines: int = 100,
+        since: str | None = None,
+        hide_repl_echo: bool = True,
+    ) -> ToolResult:
+        """``hide_repl_echo`` drops this server's own REPL traffic, which matron echoes into
+        its journal (marker blocks and bare ``<ok>`` lines)."""
         if unit not in LOG_UNITS:
             return _fail(f"unknown unit {unit!r}; expected one of {', '.join(LOG_UNITS)}")
         if isinstance(lines, bool) or not isinstance(lines, int) or not 1 <= lines <= MAX_LOG_LINES:
@@ -247,7 +270,7 @@ class NornsController:
         res = self.shell.run(argv)
         if res.returncode != 0:
             return _fail(f"journalctl failed: {res.stderr.strip()}")
-        text = res.stdout
+        text = strip_repl_echo(res.stdout) if hide_repl_echo else res.stdout
         return ToolResult(
             True, f"{len(text.splitlines())} lines from norns-{unit}.", {"unit": unit, "text": text}
         )
@@ -376,12 +399,21 @@ class NornsController:
             return _fail(f"load failed: {exc}", live=True, sent=True)
         state = self._wait_for_script(lambda name: name not in ("", "none"), 6.0)
         loaded = bool(state.success and state.data and state.data.get("loaded"))
+        load_log = self._load_log(f"code/{folder}/{file}.lua")
+        if load_log["errors"]:
+            loaded = False
         return ToolResult(
             loaded,
             f"loaded {folder}/{file}"
             if loaded
             else "load sent; the script did not report as running (check norns_logs).",
-            {"live": True, "sent": True, "lua": snippet.code, "now": state.data},
+            {
+                "live": True,
+                "sent": True,
+                "lua": snippet.code,
+                "now": state.data,
+                "load_log": load_log,
+            },
         )
 
     def start_script(self, script: str | None = None, confirm: bool = False) -> ToolResult:
@@ -520,6 +552,27 @@ class NornsController:
             last = self.current_script()
         return last
 
+    def _load_log(self, dust_relative: str) -> dict[str, Any]:
+        """matron's journal after the last '# script load: ...<path>' line, and the error
+        lines in it (script errors do not come back over the REPL)."""
+        res = self.logs("matron", 80)
+        if not res.success:
+            return {"lines": [], "errors": [], "note": res.message}
+        lines = res.data["text"].splitlines()
+        start = max(
+            (
+                i
+                for i, line in enumerate(lines)
+                if "# script load:" in line and line.rstrip().endswith(dust_relative)
+            ),
+            default=None,
+        )
+        if start is None:
+            return {"lines": [], "errors": [], "note": "load line not found in the journal"}
+        tail = lines[start:]
+        errors = [line for line in tail if any(m in line for m in LOAD_ERROR_MARKS)]
+        return {"lines": tail[-40:], "errors": errors}
+
     def ssh_hint(self) -> str:
         return " ".join(ssh_base(self.settings)[:-1])
 
@@ -530,3 +583,31 @@ def _number(raw: str) -> float | int | str:
     except ValueError:
         return raw
     return int(f) if f.is_integer() and "." not in raw and "e" not in raw.lower() else f
+
+
+def _http_get(url: str) -> str:
+    """Plain GET on the local network (maiden's read-only API). 3 s timeout."""
+    with urllib.request.urlopen(url, timeout=3) as resp:
+        return resp.read(4096).decode("utf-8", "replace")
+
+
+def strip_repl_echo(text: str) -> str:
+    out: list[str] = []
+    inside, seen_open = False, False
+    for line in text.splitlines(keepends=True):
+        if "<NMCP:" in line:
+            seen_open = True
+            inside = "</NMCP:" not in line.split("<NMCP:", 1)[1]
+            continue
+        if "</NMCP:" in line:
+            if not inside and not seen_open:
+                # The window began inside a block: everything so far was its echo.
+                out = [kept for kept in out if kept.startswith("-- ")]
+            inside = False
+            continue
+        if inside:
+            continue
+        if line.rstrip().endswith(": <ok>") or line.strip() == "<ok>":
+            continue
+        out.append(line)
+    return "".join(out)
