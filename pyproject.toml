@@ -1,0 +1,42 @@
+[project]
+name = "norns-mcp"
+version = "0.1.0"
+description = "MCP server and CLI for a monome norns: read state, gated control, safe deploy"
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "Thomas Adair", email = "34932535+AdairBear@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "mcp>=2.3.0",
+    "websockets>=13",
+]
+
+[project.scripts]
+norns-mcp = "norns_mcp.server:main"
+nornsctl = "norns_mcp.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.24,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.17.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["device: read-only checks against the real norns (run with -m device)"]
+addopts = "-m 'not device'"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# Input errors are ValueError on purpose: every caller turns ValueError into a failed ToolResult.
+ignore = ["TRY004"]
