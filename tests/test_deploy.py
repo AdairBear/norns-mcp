@@ -29,7 +29,7 @@ def _setup(src: Path, live: bool, exists: bool = True, backup_matches: bool = Tr
     shell.on(["test", "-d", TARGET], rc=0 if exists else 1)
     shell.on(["test", "-e"], rc=1)
     shell.on(["test", "-L", TARGET], rc=1)  # target is a real folder
-    shell.on(["find", "-P", TARGET, "-mindepth", "1"], "f myscript.lua\n")  # same types, no links
+    shell.on(["find", "-P", TARGET, "-mindepth", "1"], "f myscript.lua\0")  # same types, no links
     shell.on(["mkdir", "-p", REMOTE_BACKUPS])
     shell.on(["cp", "-a", TARGET])
     shell.on(["find", TARGET], "myscript.lua\t6\n")

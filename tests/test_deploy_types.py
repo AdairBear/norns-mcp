@@ -27,7 +27,8 @@ def _ctl(listing: str = "", d_rc: int = 0, e_rc: int = 0, l_rc: int = 1):
     shell.on(["test", "-L", TARGET], rc=l_rc)
     shell.on(["test", "-d", TARGET], rc=d_rc)
     shell.on(["test", "-e", TARGET], rc=e_rc)
-    shell.on(["find", "-P", TARGET, "-mindepth", "1"], listing)
+    # find prints NUL-separated entries; the cases below are written one per line.
+    shell.on(["find", "-P", TARGET, "-mindepth", "1"], listing.replace("\n", "\0"))
     runner.on(lambda a: a[0] == "rsync", "cd+++++++++ lib/\n")
     return ctl, shell, runner
 

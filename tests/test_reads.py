@@ -124,10 +124,10 @@ def test_inventory_and_backup_compare(tmp_path: Path):
 
 
 def test_screenshot_exports_then_copies(tmp_path: Path):
-    ctl, _shell, repl, _osc, runner = make(tmp=tmp_path)
+    ctl, _shell, repl, _osc, runner = make(live=True, tmp=tmp_path)
     repl.on("screen_export_screenshot", "saved")
     runner.on(lambda a: a[0] == "scp", effect=lambda a: Path(a[-1]).write_bytes(b"\x89PNG"))
-    res = ctl.screenshot()
+    res = ctl.screenshot(confirm=True)
     assert res.success and Path(res.data["path"]).read_bytes() == b"\x89PNG"
     assert "/tmp/norns-mcp-screen.png" in repl.sent[0]
     assert runner.calls[0][-2] == "norns:/tmp/norns-mcp-screen.png"

@@ -58,13 +58,13 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("inventory", help="dust inventory")
     s.add_argument("--compare-backup", action="store_true")
     s.add_argument("--hashes", action="store_true")
-    sub.add_parser("screenshot", help="save the norns screen as PNG on the Mac")
 
     def write(name: str, help_: str) -> argparse.ArgumentParser:
         sp = sub.add_parser(name, help=f"WRITE: {help_}")
         sp.add_argument("--confirm", action="store_true", help="really do it (needs --live)")
         return sp
 
+    write("screenshot", "save the norns screen as PNG on the Mac (writes a /tmp file there)")
     s = write("load", "load a script")
     s.add_argument("script")
     s = write("start", "start a script (default: the last one)")
@@ -106,7 +106,7 @@ def run(ctl: NornsController, args: argparse.Namespace):
         case "inventory":
             return ctl.dust_inventory(args.compare_backup, args.hashes)
         case "screenshot":
-            return ctl.screenshot()
+            return ctl.screenshot(c)
         case "load":
             return ctl.load_script(args.script, c)
         case "start":

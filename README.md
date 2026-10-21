@@ -7,8 +7,8 @@ Private, local-only repo. An AdairHub node; shares its device core with `m8-mcp`
 
 | | Tools | Path |
 |---|---|---|
-| Reads (any time) | `norns_status`, `norns_list_scripts`, `norns_current_script`, `norns_read_script`, `norns_params`, `norns_get_param`, `norns_logs`, `norns_dust_inventory`, `norns_screenshot` | SSH (`ssh norns`), matron REPL ws :5555 |
-| Writes (gated) | `norns_load_script`, `norns_start_script`, `norns_stop_script`, `norns_set_param`, `norns_key`, `norns_enc` | matron REPL, OSC :10111 |
+| Reads (any time) | `norns_status`, `norns_list_scripts`, `norns_current_script`, `norns_read_script`, `norns_params`, `norns_get_param`, `norns_logs`, `norns_dust_inventory` | SSH (`ssh norns`), matron REPL ws :5555 |
+| Writes (gated) | `norns_screenshot`, `norns_load_script`, `norns_start_script`, `norns_stop_script`, `norns_set_param`, `norns_key`, `norns_enc` | matron REPL, OSC :10111 |
 | Deploy (gated) | `norns_deploy` | rsync over SSH |
 
 ## Safety
@@ -24,7 +24,8 @@ Private, local-only repo. An AdairHub node; shares its device core with `m8-mcp`
   SHA-256 check against the Mac.
 - Lua goes to matron as one line with nonce markers (lessons from the iMac norns-mcp-server:
   multi-line sends corrupt matron's REPL buffer).
-- The only file written outside deploy is the screenshot temp file `/tmp/norns-mcp-screen.png`.
+- The only file written outside deploy is the screenshot temp file `/tmp/norns-mcp-screen.png`;
+  screenshot is gated like any write.
 
 ## Use
 
@@ -33,7 +34,7 @@ uv sync
 .venv/bin/nornsctl status            # reads
 .venv/bin/nornsctl scripts | current | params | get <id> | logs [unit] -n 50 | read awake
 .venv/bin/nornsctl inventory --compare-backup --hashes
-.venv/bin/nornsctl screenshot
+.venv/bin/nornsctl --live screenshot --confirm   # gated: writes one /tmp file on the norns
 .venv/bin/nornsctl load awake        # DRY RUN
 .venv/bin/nornsctl --live load awake --confirm    # real (ask Thomas first)
 .venv/bin/nornsctl deploy ~/path/to/myscript      # DRY RUN plan

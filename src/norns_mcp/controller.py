@@ -364,12 +364,19 @@ class NornsController:
                     out[path[len(REMOTE_DUST) + 1 :]] = digest
         return out
 
-    def screenshot(self, out_dir: Path | None = None) -> ToolResult:
+    def screenshot(self, confirm: bool = False, out_dir: Path | None = None) -> ToolResult:
         """Export matron's screen buffer to /tmp on the norns (one fixed file, overwritten),
-        then copy it to the Mac. Changes nothing the script or the user can see."""
+        then copy it to the Mac. It writes a file on the norns, so it is gated like every
+        write (Thomas's brief lists screenshot under Control; two verifiers agreed)."""
         out_dir = Path(out_dir) if out_dir else self.settings.screenshot_dir
+        snippet = lua.screenshot(REMOTE_SCREENSHOT)
+        gate = self._gate(
+            "screenshot", confirm, {"lua": snippet.code, "writes_on_norns": REMOTE_SCREENSHOT}
+        )
+        if gate:
+            return gate
         try:
-            self._lua(lua.screenshot(REMOTE_SCREENSHOT))
+            self._lua(snippet)
         except (ConnectionError, lua.LuaError) as exc:
             return _fail(f"screenshot export failed: {exc}")
         self.sleep(0.3)  # the PNG is written on matron's screen thread

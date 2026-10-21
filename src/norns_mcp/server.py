@@ -29,7 +29,7 @@ Talks to a monome norns (norns.local) over SSH (reads, deploy), matron's websock
 REPL (script state, params, load/stop) and OSC (keys, encoders). Every result is
 {success, message, data}. READS are always allowed: norns_status, norns_list_scripts,
 norns_current_script, norns_read_script, norns_params, norns_get_param, norns_logs,
-norns_dust_inventory, norns_screenshot. WRITES (norns_load_script, norns_start_script,
+norns_dust_inventory. WRITES (norns_screenshot, norns_load_script, norns_start_script,
 norns_stop_script, norns_set_param, norns_key, norns_enc, norns_deploy) are DRY RUN unless
 the server was started with --live; then each call ALSO needs confirm=true. A dry run
 reports data.would_send and sends nothing. Never deletes files on the norns; deploy backs
@@ -121,10 +121,12 @@ def build_server(ctl: NornsController) -> MCPServer:
         return await _call("norns_dust_inventory", ctl.dust_inventory, compare_backup, hashes)
 
     @mcp.tool()
-    async def norns_screenshot() -> dict[str, Any]:
-        """Grab the norns screen (640x384 PNG of the 128x64 display) to the Mac. Writes one
-        fixed temp file on the norns (/tmp/norns-mcp-screen.png); changes nothing else."""
-        return await _call("norns_screenshot", ctl.screenshot)
+    async def norns_screenshot(confirm: bool = False) -> dict[str, Any]:
+        """WRITE (small). Grab the norns screen (640x384 PNG of the 128x64 display) to the
+        Mac. It makes matron write one fixed temp file on the norns
+        (/tmp/norns-mcp-screen.png), so it is dry run unless --live; live needs
+        confirm=true."""
+        return await _call("norns_screenshot", ctl.screenshot, confirm)
 
     # ── writes (gated) ──
     @mcp.tool()

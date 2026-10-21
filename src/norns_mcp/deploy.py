@@ -67,6 +67,16 @@ def local_types(root: Path) -> dict[str, str]:
     return out
 
 
+def unsafe_names(root: Path) -> list[str]:
+    """Local paths with a newline or other control character: refused, so every listing
+    (rsync itemize, the remote type check) stays one entry per line."""
+    return [
+        path.relative_to(root).as_posix()
+        for path in sorted(root.rglob("*"))
+        if any(ord(c) < 32 or ord(c) == 127 for c in path.relative_to(root).as_posix())
+    ]
+
+
 def local_symlinks(root: Path) -> list[str]:
     links = []
     for path in sorted(root.rglob("*")):
@@ -120,12 +130,12 @@ class Deployer:
             if self.shell.run(["test", "-e", target]).returncode == 0:
                 return [f"target exists but is not a folder: {target}"]
             return []
-        res = self.shell.run(["find", "-P", target, "-mindepth", "1", "-printf", "%y %P\\n"])
+        res = self.shell.run(["find", "-P", target, "-mindepth", "1", "-printf", "%y %P\\0"])
         if res.returncode != 0:
             return [f"could not check {target} for symlinks and types: {res.stderr.strip()[:100]}"]
         blockers = []
-        for line in res.stdout.splitlines():
-            kind, _, rel = line.partition(" ")
+        for entry in res.stdout.split("\0"):  # NUL-separated: names may contain newlines
+            kind, _, rel = entry.partition(" ")
             if not rel:
                 continue
             if kind == "l":
@@ -173,6 +183,9 @@ class Deployer:
             return _fail(f"rsync dry run failed: {plan.stderr.strip()}", rsync=dry)
         changes = parse_itemized(plan.stdout)
         blockers = [f"local symlink: {link}" for link in local_symlinks(local_dir)]
+        blockers += [
+            f"local name has a control character: {bad!r}" for bad in unsafe_names(local_dir)
+        ]
         blockers += self._remote_blockers(target, local_types(local_dir))
         data: dict[str, Any] = {
             "local": str(local_dir),
