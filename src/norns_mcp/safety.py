@@ -92,6 +92,8 @@ FORBIDDEN_TOKENS = frozenset(
 
 
 def _under(path: str, root: str) -> bool:
+    if ".." in path.split("/"):
+        return False
     return path == root or path.startswith(root.rstrip("/") + "/")
 
 

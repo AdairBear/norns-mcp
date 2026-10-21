@@ -1,7 +1,7 @@
 """Every write is a dry run without --live, and needs confirm=True with it."""
 
 import pytest
-from fakes import CURRENT_AWAKE, CURRENT_NONE, make
+from fakes import CLEAN_LOAD, CURRENT_AWAKE, CURRENT_NONE, LOAD_TIME, make
 
 from norns_mcp.config import REMOTE_CODE
 
@@ -21,8 +21,9 @@ def _primed(live: bool):
     shell.on(["test", "-f"], rc=0)
     repl.on("params.lookup", "found\t0.2\t0.2")
     repl.on("norns.state.name", CURRENT_AWAKE)
-    repl.on("script.load", "called")
+    repl.on("script.load", LOAD_TIME)
     repl.on("script.clear", "stopped")
+    shell.on(["journalctl"], CLEAN_LOAD)
     return ctl, shell, repl, osc
 
 
@@ -56,6 +57,7 @@ def test_live_load_with_confirm():
     ctl, shell, repl, _ = _primed(live=True)
     res = ctl.load_script("awake", confirm=True)
     assert res.success and res.data["now"]["name"] == "awake"
+    assert res.data["load_log"]["status"] == "ok"
     assert any('norns.script.load("code/awake/awake.lua")' in c for c in repl.sent)
     assert ["test", "-f", f"{REMOTE_CODE}/awake/awake.lua"] in shell.calls
 
@@ -70,10 +72,11 @@ def test_load_unknown_script_is_refused_before_any_lua():
 def test_load_reports_when_script_does_not_come_up():
     ctl, shell, repl, _ = make(live=True)[:4]
     shell.on(["test", "-f"], rc=0)
+    shell.on(["journalctl"], CLEAN_LOAD)
     repl.on("norns.state.name", CURRENT_NONE)
-    repl.on("script.load", "called")
+    repl.on("script.load", LOAD_TIME)
     res = ctl.load_script("awake", confirm=True)
-    assert not res.success and "did not report" in res.message
+    assert not res.success and "UNKNOWN" in res.message
 
 
 def test_start_without_name_uses_last_script():

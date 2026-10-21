@@ -66,7 +66,8 @@ class Deployer:
         self.runner = runner
 
     def rsync_argv(self, local_dir: Path, name: str, dry_run: bool) -> list[str]:
-        argv = ["rsync", "-rlt", "--itemize-changes"]
+        # --keep-dirlinks: a symlinked dir on the norns stays a symlink, not replaced by a dir.
+        argv = ["rsync", "-rlt", "--keep-dirlinks", "--itemize-changes"]
         if dry_run:
             argv.append("--dry-run")
         argv += [f"--exclude={e}" for e in EXCLUDES]

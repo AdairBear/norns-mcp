@@ -113,6 +113,25 @@ class FakeRunner:
 CURRENT_NONE = "none\t\tnone\tnil\t63\t231114"
 CURRENT_AWAKE = "awake\t/home/we/dust/code/awake/awake.lua\tawake\tPolyPerc\t80\t231114"
 
+# What the load snippet answers: the norns clock just before the load.
+LOAD_TIME = "2026-10-21 01:30:00"
+_J = "2026-10-21T01:30:00+0100 norns ws-wrapper[536]: "
+
+
+def load_journal(script: str = "awake/awake", *after: str) -> str:
+    """matron's journal for one load, as norns 231114 prints it (lua/core/script.lua)."""
+    lines = [f"# script load: /home/we/dust/code/{script}.lua", *after]
+    return "".join(_J + line + "\n" for line in lines)
+
+
+CLEAN_LOAD = load_journal(
+    "awake/awake",
+    "### initializing data folder",
+    "# script run",
+    "loading engine: PolyPerc",
+    "# script init",
+)
+
 
 def make(live: bool = False, tmp: Path | None = None, **settings_kw):
     settings = Settings(live=live, state_dir=(tmp or Path("/nonexistent")) / "state", **settings_kw)

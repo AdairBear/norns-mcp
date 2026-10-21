@@ -153,3 +153,15 @@ def test_lua_line_must_be_single_line():
     assert check_lua_line("print(1)") == "print(1)"
     with pytest.raises(ValueError):
         check_lua_line("print(1)\nprint(2)")
+
+
+def test_backup_paths_with_dotdot_are_refused():
+    for argv in (
+        ["mkdir", "-p", f"{REMOTE_BACKUPS}/../dust/code/x"],
+        ["cp", "-a", "/home/we/dust/code/awake", f"{REMOTE_BACKUPS}/../dust/code/x"],
+        ["cp", "-a", "/home/we/dust/../.ssh", f"{REMOTE_BACKUPS}/x"],
+    ):
+        with pytest.raises(UnsafeCommand):
+            check_remote_argv(argv)
+    with pytest.raises(UnsafeCommand):
+        check_rsync_argv(_rsync(dest=f"norns:{REMOTE_CODE}/awake/../mlr/"), f"{REMOTE_CODE}/awake")

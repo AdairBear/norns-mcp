@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 import urllib.request
 from collections import defaultdict
@@ -38,8 +39,16 @@ from norns_mcp.transports import Osc, Repl, Runner, Shell, ssh_base
 
 MAX_LOG_LINES = 2000
 MAX_READ_BYTES = 256 * 1024
-# matron prints these when a script fails (lua/core/script.lua, norns.lua; norns 231114).
-LOAD_ERROR_MARKS = ("load fail", "### ", "lua: ", "stack traceback", "error:", "script error")
+# Exact matron output, norns 231114 (read on the device 2026-10-21):
+# - menu.lua norns.scripterror: "### SCRIPT ERROR: <msg>" (msg: "load fail", "init",
+#   "missing ...", "version ... required"); startup.lua: "### MISSING INCLUDE: <file>".
+# - script.lua prints "# script load: <abs path>", then "# script init" just before the
+#   script's init() runs (after the engine loads). "### initializing data folder" and
+#   "### copied default psets" are normal and NOT errors.
+LOAD_ERROR_MARKS = ("### SCRIPT ERROR:", "### MISSING INCLUDE:")
+LOAD_INIT_MARK = "# script init"
+LOAD_TIMEOUT_S = 12.0  # engine load + init; scripts with big engines take a few seconds
+INIT_GRACE_S = 0.6  # an init() error is printed right after "# script init"
 
 
 def _fail(message: str, **data: Any) -> ToolResult:
@@ -394,25 +403,32 @@ class NornsController:
         if gate:
             return gate
         try:
-            self._lua(snippet, timeout=10.0)
+            since = self._lua(snippet, timeout=10.0).strip()
         except (ConnectionError, lua.LuaError) as exc:
             return _fail(f"load failed: {exc}", live=True, sent=True)
-        state = self._wait_for_script(lambda name: name not in ("", "none"), 6.0)
-        loaded = bool(state.success and state.data and state.data.get("loaded"))
-        load_log = self._load_log(f"code/{folder}/{file}.lua")
-        if load_log["errors"]:
-            loaded = False
+        expected = folder if file == folder else f"{folder}/{file}"
+        outcome = self._load_outcome(f"code/{folder}/{file}.lua", since)
+        state = self.current_script()
+        name = state.data.get("name") if state.success and state.data else None
+        if outcome["status"] == "ok" and name != expected:
+            outcome["status"] = "unknown"
+            outcome["note"] = f"journal looks clean but norns reports {name!r}, not {expected!r}"
+        messages = {
+            "ok": f"loaded {expected}",
+            "error": f"{expected} failed to load: " + "; ".join(outcome["errors"])[:300],
+            "unknown": f"load sent; outcome UNKNOWN ({outcome.get('note', '')}). "
+            "Check norns_logs and the norns screen.",
+        }
         return ToolResult(
-            loaded,
-            f"loaded {folder}/{file}"
-            if loaded
-            else "load sent; the script did not report as running (check norns_logs).",
+            outcome["status"] == "ok",
+            messages[outcome["status"]],
             {
                 "live": True,
                 "sent": True,
                 "lua": snippet.code,
+                "expected": expected,
                 "now": state.data,
-                "load_log": load_log,
+                "load_log": outcome,
             },
         )
 
@@ -543,35 +559,48 @@ class NornsController:
 
     # ── internals ────────────────────────────────────────────────────────────
 
-    def _wait_for_script(self, pred: Callable[[str], bool], timeout_s: float) -> ToolResult:
-        last = self.current_script()
-        for _ in range(max(1, int(timeout_s / 0.5))):
-            if last.success and pred(last.data["name"]):
-                break
-            self.sleep(0.5)
-            last = self.current_script()
-        return last
-
-    def _load_log(self, dust_relative: str) -> dict[str, Any]:
-        """matron's journal after the last '# script load: ...<path>' line, and the error
-        lines in it (script errors do not come back over the REPL)."""
-        res = self.logs("matron", 80)
-        if not res.success:
-            return {"lines": [], "errors": [], "note": res.message}
-        lines = res.data["text"].splitlines()
-        start = max(
-            (
-                i
-                for i, line in enumerate(lines)
-                if "# script load:" in line and line.rstrip().endswith(dust_relative)
-            ),
-            default=None,
+    def _load_outcome(self, dust_relative: str, since: str) -> dict[str, Any]:
+        """Read matron's journal from ``since`` (the norns' clock just before the load) and
+        decide: ``ok`` ("# script init" seen, then no error within INIT_GRACE_S), ``error``
+        (an exact matron error line after this load line), or ``unknown`` (no load line, or
+        no init before LOAD_TIMEOUT_S). Never ``ok`` by default."""
+        if not _SINCE_RE.match(since):
+            return {
+                "status": "unknown",
+                "errors": [],
+                "lines": [],
+                "note": f"norns clock reply not understood: {since[:40]!r}",
+            }
+        polls = max(1, int(LOAD_TIMEOUT_S / 0.5))
+        init_at: int | None = None
+        tail: list[str] = []
+        for i in range(polls + 1):
+            res = self.logs("matron", MAX_LOG_LINES, since)
+            if not res.success:
+                return {"status": "unknown", "errors": [], "lines": [], "note": res.message}
+            tail = _after_load_line(res.data["text"], dust_relative)
+            errors = [line for line in tail if any(m in line for m in LOAD_ERROR_MARKS)]
+            if errors:
+                return {"status": "error", "errors": errors, "lines": tail[-40:], "since": since}
+            if tail and any(LOAD_INIT_MARK in line for line in tail):
+                if init_at is None:
+                    init_at = i
+                elif (i - init_at) * 0.5 >= INIT_GRACE_S:
+                    return {"status": "ok", "errors": [], "lines": tail[-40:], "since": since}
+            if i < polls:
+                self.sleep(0.5)
+        note = (
+            "load line not found in the journal"
+            if not tail
+            else "no '# script init' before the timeout (engine still loading?)"
         )
-        if start is None:
-            return {"lines": [], "errors": [], "note": "load line not found in the journal"}
-        tail = lines[start:]
-        errors = [line for line in tail if any(m in line for m in LOAD_ERROR_MARKS)]
-        return {"lines": tail[-40:], "errors": errors}
+        return {
+            "status": "unknown",
+            "errors": [],
+            "lines": tail[-40:],
+            "since": since,
+            "note": note,
+        }
 
     def ssh_hint(self) -> str:
         return " ".join(ssh_base(self.settings)[:-1])
@@ -611,3 +640,16 @@ def strip_repl_echo(text: str) -> str:
             continue
         out.append(line)
     return "".join(out)
+
+
+_SINCE_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
+
+
+def _after_load_line(journal: str, dust_relative: str) -> list[str]:
+    """Lines from the FIRST '# script load: .../<dust_relative>' on (the journal was
+    already cut to this load's second). Empty if there is none."""
+    lines = journal.splitlines()
+    for i, line in enumerate(lines):
+        if "# script load:" in line and line.rstrip().endswith("/" + dust_relative.lstrip("/")):
+            return lines[i:]
+    return []

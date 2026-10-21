@@ -134,8 +134,11 @@ def screenshot(remote_path: str) -> Snippet:
 
 
 def load_script(dust_relative: str) -> Snippet:
-    """``norns.script.load`` takes a path relative to dust (``code/awake/awake.lua``)."""
-    return _wrap(f"norns.script.load({lua_str(dust_relative)});", '"called"')
+    """``norns.script.load`` takes a path relative to dust (``code/awake/awake.lua``).
+    Answers the norns' own clock, read just BEFORE the load, so the journal can be read
+    from that second on (``journalctl --since``)."""
+    body = f'local T=os.date("%Y-%m-%d %H:%M:%S"); norns.script.load({lua_str(dust_relative)});'
+    return _wrap(body, "T")
 
 
 def stop_script() -> Snippet:

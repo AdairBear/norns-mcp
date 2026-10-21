@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
-from fakes import CURRENT_AWAKE, make
+from fakes import CLEAN_LOAD, CURRENT_AWAKE, LOAD_TIME, make
 
 from norns_mcp import cli, server
 from norns_mcp.transports import encode_osc
@@ -99,7 +99,8 @@ def test_cli_write_needs_live_and_confirm(monkeypatch):
     shell, repl = parts[1], parts[2]
     shell.on(["test", "-f"], rc=0)
     repl.on("norns.state.name", CURRENT_AWAKE)
-    repl.on("script.load", "called")
+    repl.on("script.load", LOAD_TIME)
+    shell.on(["journalctl"], CLEAN_LOAD)
     code, text = _cli(["load", "awake", "--confirm"], parts)
     assert code == 0 and "DRY RUN" in text
     code, text = _cli(["--live", "load", "awake"], parts)
