@@ -8,10 +8,11 @@ Rules (Thomas, 2026-10-20):
   ~/norns-mcp-backups/<name>-<UTC timestamp>/ and the copy is checked (same paths, same
   sizes). If the backup fails or does not match, nothing is pushed.
 - After the push every local file is checked against ``sha256sum`` on the norns.
-- Symlinks block a live deploy, in the local folder or anywhere under the target on the
-  norns (or the target itself). rsync would either follow a symlinked folder and write
-  files the ``cp -a`` backup never copied (``--keep-dirlinks``), or replace the link,
-  which deletes it. Neither is allowed, so the deploy refuses and says which links.
+- A live deploy refuses (before any backup or push) when it could delete, replace or
+  follow anything: a symlink in the local folder, at the target or under it on the norns;
+  a target that exists but is not a folder; or a path whose type differs (file vs folder)
+  between the Mac and the norns, which rsync removes even without --delete. Dry runs list
+  these as ``blockers``.
 """
 
 from __future__ import annotations
@@ -49,6 +50,20 @@ def parse_itemized(stdout: str) -> dict[str, list[str]]:
             (out["new_files"] if "+++++++" in flags else out["changed_files"]).append(path)
         else:
             out["other"].append(line)
+    return out
+
+
+def local_types(root: Path) -> dict[str, str]:
+    """relative path -> "d" (folder) or "f" (file) for what rsync will send."""
+    out: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        rel = path.relative_to(root)
+        if any(part in EXCLUDES for part in rel.parts) or path.is_symlink():
+            continue
+        if path.is_dir():
+            out[rel.as_posix()] = "d"
+        elif path.is_file():
+            out[rel.as_posix()] = "f"
     return out
 
 
@@ -91,14 +106,36 @@ class Deployer:
         ]
         return check_rsync_argv(argv, f"{REMOTE_CODE}/{name}")
 
-    def _remote_symlinks(self, target: str) -> list[str]:
-        """Blockers for symlinks at or under ``target`` on the norns ([] = none found)."""
+    def _remote_blockers(self, target: str, local: dict[str, str]) -> list[str]:
+        """Reasons a live push could delete, replace or follow something on the norns.
+
+        rsync without --delete still removes an item whose TYPE changes (a remote file
+        where the local side has a folder, or the reverse) and does not report it as
+        ``*deleting``. So: no symlink at or under the target, the target is a folder or
+        absent, and every path both sides have is the same type. ``local`` maps
+        relative path -> "f" / "d"."""
         if self.shell.run(["test", "-L", target]).returncode == 0:
             return [f"target is a symlink: {target}"]
-        res = self.shell.run(["find", "-P", target, "-type", "l", "-printf", "%P\\n"])
+        if self.shell.run(["test", "-d", target]).returncode != 0:
+            if self.shell.run(["test", "-e", target]).returncode == 0:
+                return [f"target exists but is not a folder: {target}"]
+            return []
+        res = self.shell.run(["find", "-P", target, "-mindepth", "1", "-printf", "%y %P\\n"])
         if res.returncode != 0:
-            return [f"could not check {target} for symlinks: {res.stderr.strip()[:100]}"]
-        return [f"symlink on the norns: {target}/{p}" for p in res.stdout.splitlines() if p]
+            return [f"could not check {target} for symlinks and types: {res.stderr.strip()[:100]}"]
+        blockers = []
+        for line in res.stdout.splitlines():
+            kind, _, rel = line.partition(" ")
+            if not rel:
+                continue
+            if kind == "l":
+                blockers.append(f"symlink on the norns: {target}/{rel}")
+            elif rel in local and kind != local[rel]:
+                want = "folder" if local[rel] == "d" else "file"
+                blockers.append(
+                    f"type differs, the norns has {kind!r} where local has a {want}: {rel}"
+                )
+        return blockers
 
     def _tree(self, remote_dir: str) -> dict[str, int] | None:
         res = self.shell.run(["find", remote_dir, "-type", "f", "-printf", "%P\\t%s\\n"])
@@ -136,8 +173,7 @@ class Deployer:
             return _fail(f"rsync dry run failed: {plan.stderr.strip()}", rsync=dry)
         changes = parse_itemized(plan.stdout)
         blockers = [f"local symlink: {link}" for link in local_symlinks(local_dir)]
-        if exists:
-            blockers += self._remote_symlinks(target)
+        blockers += self._remote_blockers(target, local_types(local_dir))
         data: dict[str, Any] = {
             "local": str(local_dir),
             "target": f"{self.settings.ssh_alias}:{target}/",
@@ -150,7 +186,7 @@ class Deployer:
         }
         if not self.settings.live:
             data.update(live=False, sent=False)
-            blocked = f" BLOCKED for live: {len(blockers)} symlink(s)." if blockers else ""
+            blocked = f" BLOCKED for live: {len(blockers)} blocker(s)." if blockers else ""
             return ToolResult(
                 True, f"DRY RUN: would push {_summary(changes)} to {target}.{blocked}", data
             )

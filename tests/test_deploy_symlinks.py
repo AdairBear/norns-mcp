@@ -23,7 +23,8 @@ def _ctl(live: bool, link_rc: int = 1, links: str = "", find_rc: int = 0):
     ctl, shell, _repl, _osc, runner = make(live=live)
     shell.on(["test", "-d", TARGET], rc=0)
     shell.on(["test", "-L", TARGET], rc=link_rc)
-    shell.on(["find", "-P", TARGET, "-type", "l"], links, rc=find_rc)
+    listing = "f myscript.lua\n" + "".join(f"l {p}\n" for p in links.split())
+    shell.on(["find", "-P", TARGET, "-mindepth", "1"], listing, rc=find_rc)
     runner.on(lambda a: a[0] == "rsync", ">f.st...... myscript.lua\n")
     return ctl, shell, runner
 
