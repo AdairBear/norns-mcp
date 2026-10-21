@@ -1,6 +1,6 @@
 # norns-mcp v0.1: status
 
-**Last updated:** 2026-10-20 23:07 PDT (2026-10-21 06:07 UTC; the norns clock is BST). Read hourly
+**Last updated:** 2026-10-20 23:09 PDT (2026-10-21 06:09 UTC; the norns clock is BST). Read hourly
 by Thomas's checker. Local git only (`main`, no remote). norns-mcp has never sent a live write to
 the norns: every write so far has been a dry run.
 
@@ -9,7 +9,10 @@ the norns: every write so far has been a dry run.
 - **Code:** v0.1 is complete. The independent verifier passed the code at `1778968`. Since then
   only the docs have changed.
 - **Real norns:** the read-only checks pass. **Another client is using the norns right now** (see below).
-- **Waiting on Thomas:** the OK for live test L1, and 3 decisions (bottom of this file).
+- **Waiting on Thomas:** live test L1, tomorrow with him present. The 3 earlier decisions are made.
+- **Overnight research:** docs/MULTI-SCRIPT.md, on running several norns scripts together and
+  coordinating with the M8 and the DAW. Recommended: layer 1, Mac-side scenes (about 1-2 days).
+  4 open questions for Thomas are in that doc.
 
 ## Done
 
@@ -62,6 +65,8 @@ Thomas's OK.
 2. After L1, the tests in docs/THOMAS_AT_THE_NORNS.md, each with its own OK: set a param and set it
    back, a screenshot, key/encoder over OSC, deploying a new test folder.
 3. Not v0.1: extract the shared core package with m8-mcp (docs/CORE.md).
+4. Multi-script (docs/MULTI-SCRIPT.md): after Thomas answers its open questions, draft the layer 1
+   scene format with a dry-run `scene_preview` (fakes only, no hardware).
 
 ## Live test L1, waiting on Thomas's OK: load awake, then stop it
 
@@ -95,6 +100,8 @@ cd ~/Developer/norns-mcp
 2. ~~Second live switch~~: decided 2026-10-20, removed. `--live` is the only switch.
 3. ~~junglebreaks copy~~: decided, not needed (v6 is backed up separately).
 4. ~~Claude Code registration~~: decided, YES in dry-run mode, **after L1 passes**.
+5. Multi-script open questions (docs/MULTI-SCRIPT.md): performance or composition; which clock
+   leads (and is Link OK); which crow/ii gear; OK to trial an nb voice mod later (a live write).
 
 ## Process note
 
