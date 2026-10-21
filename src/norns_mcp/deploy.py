@@ -8,6 +8,10 @@ Rules (Thomas, 2026-10-20):
   ~/norns-mcp-backups/<name>-<UTC timestamp>/ and the copy is checked (same paths, same
   sizes). If the backup fails or does not match, nothing is pushed.
 - After the push every local file is checked against ``sha256sum`` on the norns.
+- Symlinks block a live deploy, in the local folder or anywhere under the target on the
+  norns (or the target itself). rsync would either follow a symlinked folder and write
+  files the ``cp -a`` backup never copied (``--keep-dirlinks``), or replace the link,
+  which deletes it. Neither is allowed, so the deploy refuses and says which links.
 """
 
 from __future__ import annotations
@@ -48,6 +52,15 @@ def parse_itemized(stdout: str) -> dict[str, list[str]]:
     return out
 
 
+def local_symlinks(root: Path) -> list[str]:
+    links = []
+    for path in sorted(root.rglob("*")):
+        rel = path.relative_to(root)
+        if not any(part in EXCLUDES for part in rel.parts) and path.is_symlink():
+            links.append(rel.as_posix())
+    return links
+
+
 def local_files(root: Path) -> dict[str, Path]:
     files: dict[str, Path] = {}
     for path in sorted(root.rglob("*")):
@@ -66,8 +79,7 @@ class Deployer:
         self.runner = runner
 
     def rsync_argv(self, local_dir: Path, name: str, dry_run: bool) -> list[str]:
-        # --keep-dirlinks: a symlinked dir on the norns stays a symlink, not replaced by a dir.
-        argv = ["rsync", "-rlt", "--keep-dirlinks", "--itemize-changes"]
+        argv = ["rsync", "-rlt", "--itemize-changes"]
         if dry_run:
             argv.append("--dry-run")
         argv += [f"--exclude={e}" for e in EXCLUDES]
@@ -78,6 +90,15 @@ class Deployer:
             f"{self.settings.ssh_alias}:{REMOTE_CODE}/{name}/",
         ]
         return check_rsync_argv(argv, f"{REMOTE_CODE}/{name}")
+
+    def _remote_symlinks(self, target: str) -> list[str]:
+        """Blockers for symlinks at or under ``target`` on the norns ([] = none found)."""
+        if self.shell.run(["test", "-L", target]).returncode == 0:
+            return [f"target is a symlink: {target}"]
+        res = self.shell.run(["find", "-P", target, "-type", "l", "-printf", "%P\\n"])
+        if res.returncode != 0:
+            return [f"could not check {target} for symlinks: {res.stderr.strip()[:100]}"]
+        return [f"symlink on the norns: {target}/{p}" for p in res.stdout.splitlines() if p]
 
     def _tree(self, remote_dir: str) -> dict[str, int] | None:
         res = self.shell.run(["find", remote_dir, "-type", "f", "-printf", "%P\\t%s\\n"])
@@ -114,6 +135,9 @@ class Deployer:
         if plan.returncode != 0:
             return _fail(f"rsync dry run failed: {plan.stderr.strip()}", rsync=dry)
         changes = parse_itemized(plan.stdout)
+        blockers = [f"local symlink: {link}" for link in local_symlinks(local_dir)]
+        if exists:
+            blockers += self._remote_symlinks(target)
         data: dict[str, Any] = {
             "local": str(local_dir),
             "target": f"{self.settings.ssh_alias}:{target}/",
@@ -121,14 +145,23 @@ class Deployer:
             "plan": changes,
             "rsync_dry_run": dry,
             "warnings": warnings,
+            "blockers": blockers,
             "never_deleted": "files on the norns not in the local folder are kept",
         }
         if not self.settings.live:
             data.update(live=False, sent=False)
-            return ToolResult(True, f"DRY RUN: would push {_summary(changes)} to {target}.", data)
+            blocked = f" BLOCKED for live: {len(blockers)} symlink(s)." if blockers else ""
+            return ToolResult(
+                True, f"DRY RUN: would push {_summary(changes)} to {target}.{blocked}", data
+            )
         if confirm is not True:
             data.update(live=True, sent=False)
             return ToolResult(False, "deploy needs confirm=true (live write).", data)
+        if blockers:
+            data.update(live=True, sent=False)
+            return ToolResult(
+                False, "deploy refused, nothing changed: " + "; ".join(blockers)[:300], data
+            )
         if not (changes["new_files"] or changes["changed_files"] or changes["new_dirs"]):
             data.update(live=True, sent=False)
             return ToolResult(True, f"nothing to push: {target} already matches.", data)
