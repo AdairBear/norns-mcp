@@ -1,6 +1,6 @@
 # norns-mcp v0.1: status
 
-**Last updated:** 2026-10-20 19:30 PDT (2026-10-21 02:30 UTC; the norns clock is BST). Read hourly
+**Last updated:** 2026-10-20 19:21 PDT (2026-10-21 02:21 UTC; the norns clock is BST). Read hourly
 by Thomas's checker. Local git only (`main`, no remote). norns-mcp has never sent a live write to
 the norns: every write so far has been a dry run.
 
@@ -71,7 +71,8 @@ cd ~/Developer/norns-mcp
 
 - **Sends:** `norns.script.load("code/awake/awake.lua")` over the REPL, then
   `norns.script.clear(); _norns.free_engine(); _menu.m["PARAMS"].reset()`. That is what K1+K3
-  "stop" does in `lua/core/menu/home.lua`.
+  "stop" does in `lua/core/menu/home.lua`, minus its UI lock. The load line also reads the norns
+  clock (`os.date`) just before loading, so the journal window can be found.
 - **Proves:** the load result is read from the real journal (`load_log.status` = `ok`), and stop works.
 - **Expected on the norns (unverified live; from norns 231114 source read on the device and the
   dust listing):**
