@@ -16,6 +16,11 @@
 - Status also reports maiden's version (HTTP GET /api/v1: v1.1.6). A live load now reads matron's journal after the load line and fails if it shows a script error (`data.load_log`).
 - Also running on the norns, untouched: an older `~/norns-mcp-server` and `picoclaw` (:38905).
 
+## 2026-10-21
+
+- Verifier PASS on 1778968 after 4 FAIL rounds (load detection, -K symlinks, rsync type-change deletes, newline names). Screenshot gated. See docs/STATUS.md.
+- junglebreaks on the norns changed after the 10-19 backup (not by norns-mcp).
+
 ## Next
 
 1. Thomas OKs live checks (docs/THOMAS_AT_THE_NORNS.md).
