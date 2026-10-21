@@ -16,7 +16,7 @@
 - Status also reports maiden's version (HTTP GET /api/v1: v1.1.6). A live load now reads matron's journal after the load line and fails if it shows a script error (`data.load_log`).
 - Also running on the norns, untouched: an older `~/norns-mcp-server` and `picoclaw` (:38905).
 
-## 2026-10-21
+## 2026-10-20 evening PDT (2026-10-21 UTC)
 
 - Verifier PASS on 1778968 after 4 FAIL rounds (load detection, -K symlinks, rsync type-change deletes, newline names). Screenshot gated. See docs/STATUS.md.
 - junglebreaks on the norns changed after the 10-19 backup (not by norns-mcp).
@@ -26,3 +26,6 @@
 1. Thomas OKs live checks (docs/THOMAS_AT_THE_NORNS.md).
 2. Register in Claude Code (dry run first).
 3. Extract the shared core package with m8-mcp (docs/CORE.md).
+
+- Standing rule (Thomas, 2026-10-20): keep docs/STATUS.md current (done / next / waiting on Thomas), update + commit at every milestone; an hourly checker reads it.
+- 19:17 PDT: another client is using the norns (junglebreaks, then makebreakbeat loaded; output level changed). L1 would interrupt it.

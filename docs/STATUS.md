@@ -1,14 +1,22 @@
-# norns-mcp v0.1: status (2026-10-21)
+# norns-mcp v0.1: status
 
-Local git only (`main`, no remote). No live write has ever been sent to the norns.
+**Last updated:** 2026-10-20 19:30 PDT (2026-10-21 02:30 UTC; the norns clock is BST). Read hourly
+by Thomas's checker. Local git only (`main`, no remote). norns-mcp has never sent a live write to
+the norns: every write so far has been a dry run.
 
-## Verified
+## Summary
 
-**Independent verifier: PASS** on commit `1778968`, after 4 FAIL rounds that were each fixed:
+- **Code:** v0.1 is complete. The independent verifier passed the code at `1778968`. Since then
+  only the docs have changed.
+- **Real norns:** the read-only checks pass. **Another client is using the norns right now** (see below).
+- **Waiting on Thomas:** the OK for live test L1, and 3 decisions (bottom of this file).
 
-1. A normal first load prints `### initializing data folder`, which the old check counted as an
-   error. Old journal lines were also used, and a missing load line counted as success. Load
-   results now use exact matron text, read only from this load's journal window.
+## Done
+
+**Verifier:** PASS on `1778968`, after 4 FAIL rounds that were each fixed:
+
+1. Load results used a broad `### ` marker, old log lines, and treated a missing load line as
+   success. They now use exact matron text, read only from this load's journal window.
 2. Deploy with `--keep-dirlinks` could write through a symlink past the backup. Symlinks now block
    a live deploy.
 3. rsync deletes a file or folder whose type changes, even without `--delete`. Type mismatches and
@@ -16,36 +24,44 @@ Local git only (`main`, no remote). No live write has ever been sent to the norn
 4. A file name containing a newline could hide a type conflict. The remote listing is now
    NUL-separated, and local names with control characters block.
 
-Screenshot is now gated too (it writes one `/tmp` file on the norns).
+Screenshot is also gated, because it writes one `/tmp` file on the norns.
 
-**Fake tests:** 170 pass; ruff is clean. The shared core is byte-identical to m8-mcp (a test enforces it).
+The verifier's check of HEAD (`54d196f`, docs only) failed this file on accuracy. This version
+fixes that: core wording, dates, and norns behaviour now marked as unverified.
 
-**Read-only on the real norns** (2026-10-21; `uv run pytest -m device`: 6 pass):
+**Fake tests:** 170 pass; ruff is clean.
+
+**Shared core:** `core/serialize.py` and `core/signals.py` are byte-identical to m8-mcp's
+(test-enforced). `ToolResult` has the same fields. The rest of m8's `models.py` (its MIDI enums)
+is not copied.
+
+**Read-only on the real norns** (2026-10-20 19:17 PDT; this session's own runs, not re-run by the verifier):
 
 | Check | Result |
 |---|---|
+| `pytest -m device` | 6 pass on rerun. One run had 1 failure while another client switched scripts mid-test (expected: the test checks the running script did not change) |
 | status | SSH ok, norns 231114, maiden v1.1.6, 6/6 services active, REPL ok |
-| list scripts | 22 folders |
-| current script | none loaded |
-| params | 63 rows (54 settable) read with display strings; `get output_level` ok |
-| logs | matron and crone read; norns-mcp's own REPL echo filtered out |
-| read script | awake.lua read |
-| inventory vs `~/norns-dust-2026-10-19` | 1018 files on the norns. 521 of the 523 backed-up files match by SHA-256 (script check). 2 differ: see below |
+| list scripts / read awake.lua | 22 folders / ok |
+| current script | `makebreakbeat`, loaded 03:18 BST by another client. Earlier `junglebreaks`, before that none |
+| params | 89 rows (76 settable) for the running script; `output_level` is now −17.4 dB (it was 0.0 dB earlier; not changed by norns-mcp) |
+| logs | matron and crone read; norns-mcp's own REPL echo filtered |
+| inventory vs `~/norns-dust-2026-10-19` (SHA-256, script check) | 1018 files on the norns. 519 hashed files match. Size differs: junglebreaks' 2 files, plus `data/system.state` and `data/system.favorites` (changed by normal use) |
 | deploy dry run, all 22 backed-up folders | no blockers; 21 have no changes, junglebreaks would push 2 changed files |
-| writes without `--live` | dry run; the norns did not change |
 
-**junglebreaks changed on the norns after the 10-19 backup, and not by norns-mcp.**
-`junglebreaks.lua` and `lib/Engine_JungleEngine.sc` differ in size and SHA-256 from the manifest,
-and 21 new files appeared. They matched at the start of this session (2026-10-20). Most likely the
-junglebreaks build pushed them. The new version has no backup from this tool.
+**Someone else is using the norns.** junglebreaks was updated on it (2 files changed, 21 new) after the
+10-19 backup. Scripts are being loaded (junglebreaks, then makebreakbeat), and the output level changed.
+norns-mcp did none of this. Also running on the norns, untouched: the old
+`python3 -m norns_mcp.main` from the iMac project (up 1 day) and `picoclaw`. Probably the junglebreaks
+build or Thomas; not confirmed.
 
-## Not verified
+## Next
 
-- Every live write: load, start, stop, set param, key, encoder, screenshot, live deploy.
-- Setting a param over OSC (`/param/<id>`), which may do nothing on 231114.
-- Load detection on a real load (it assumes `# script init` appears in the journal within 12 s).
+1. Thomas OKs L1, and confirms no one is playing the norns at that moment.
+2. After L1, the tests in docs/THOMAS_AT_THE_NORNS.md, each with its own OK: set a param and set it
+   back, a screenshot, key/encoder over OSC, deploying a new test folder.
+3. Not v0.1: extract the shared core package with m8-mcp (docs/CORE.md).
 
-## The live write test I want OK'd: L1, load then stop awake
+## Live test L1, waiting on Thomas's OK: load awake, then stop it
 
 ```bash
 cd ~/Developer/norns-mcp
@@ -53,31 +69,35 @@ cd ~/Developer/norns-mcp
 .venv/bin/nornsctl --live stop --confirm
 ```
 
-- **What it does:** loads awake through the REPL (`norns.script.load("code/awake/awake.lua")`), then
-  stops it the way K1+K3 does (`norns.script.clear()`, free the engine, reset params).
-- **What it proves:** the load result is read from the real journal (`load_log.status` should be `ok`),
-  and stop works.
-- **What changes on the norns:** awake runs and makes sound until it is stopped. norns records
-  awake as the "last script" in `~/dust/data/system.state`, which today is empty. awake's data
-  folder already exists. Nothing is deleted, and no file outside system.state is written.
-- **Undo:** the stop command. Thomas can also press K1+K3 on the norns.
+- **Sends:** `norns.script.load("code/awake/awake.lua")` over the REPL, then
+  `norns.script.clear(); _norns.free_engine(); _menu.m["PARAMS"].reset()`. That is what K1+K3
+  "stop" does in `lua/core/menu/home.lua`.
+- **Proves:** the load result is read from the real journal (`load_log.status` = `ok`), and stop works.
+- **Expected on the norns (unverified live; from norns 231114 source read on the device and the
+  dust listing):**
+  - It **replaces whatever is running now** (currently makebreakbeat), so it would interrupt anyone
+    playing.
+  - awake runs and makes sound until it is stopped.
+  - `Script.load` calls `norns.state.save()`, so awake becomes the "last script" in
+    `~/dust/data/system.state`, in place of makebreakbeat.
+  - `~/dust/data/awake/` already existed in the 2026-10-20 listing, so no data folder should be
+    created.
+  - norns-mcp deletes nothing. What awake's own `init` writes is not known.
+- **Undo:** the stop command, or K1+K3 on the norns. Thomas reloads makebreakbeat (or whatever he
+  had running) by hand if he wants it back.
 
-After L1, if it passes, the next tests, each needing its own OK (listed in
-docs/THOMAS_AT_THE_NORNS.md): set one awake param and set it back; a screenshot while awake runs;
-key and encoder over OSC; deploying a new test folder.
+## Waiting on Thomas
 
-## Decisions for Thomas
-
-1. OK for L1 above?
+1. **OK for L1** above, at a time when nobody is using the norns.
 2. `NORNS_MCP_LIVE=1` works like `--live` (confirm is still needed). Keep it or remove it?
-3. Should norns-mcp back up junglebreaks' current version to the Mac before anyone touches it? That
-   is a read-only copy (rsync from the norns into a new local folder).
+3. Should norns-mcp copy junglebreaks' current version from the norns to the Mac? It's read-only;
+   that version has no backup from this tool.
 4. Should norns-mcp be registered in Claude Code (in dry-run mode)? That changes your Claude config.
 
 ## Process note
 
-Early in this round I edited existing test files (`test_writes.py`, `test_frontends.py`,
-`test_v01_extras.py`, plus an append to `test_safety.py`) with python3 scripts rather than the
-Edit tool. CLAUDE.md forbids that because it can get around the protected-test hook. The changes
-moved the load tests onto the stricter contract and weakened nothing; the verifier checked them.
-Later test edits used the Edit tool, and the hook logged each one.
+Earlier, existing test files (`test_writes.py`, `test_frontends.py`, `test_v01_extras.py`, plus an
+append to `test_safety.py`) were edited with python3 scripts rather than the Edit tool. CLAUDE.md
+forbids that because it can get around the protected-test hook. The changes moved the load tests
+onto the stricter contract and weakened nothing; the verifier reviewed them. Later test edits used
+the Edit tool, and the hook logged each one.
