@@ -1,6 +1,6 @@
 # norns-mcp v0.1: status
 
-**Last updated:** 2026-10-20 23:09 PDT (2026-10-21 06:09 UTC; the norns clock is BST). Read hourly
+**Last updated:** 2026-10-21 15:31 PDT (2026-10-21 22:31 UTC; the norns clock is BST). Read hourly
 by Thomas's checker. Local git only (`main`, no remote). norns-mcp has never sent a live write to
 the norns: every write so far has been a dry run.
 
@@ -58,6 +58,12 @@ norns-mcp did none of this. Thomas confirmed it was the junglebreaks session plu
 **The old iMac norns-mcp server is still running on the norns** (`python3 -m norns_mcp.main`,
 `~/norns-mcp-server`, up about 1 day), next to `picoclaw`. Leave it alone: stopping it needs
 Thomas's OK.
+
+## Standing rules
+
+- Keep this file current and commit it at every milestone; an hourly checker reads it.
+- Append to docs/LEARNINGS.md on any mistake, blocked action, fix that took 3+ tries, or device
+  quirk (backfilled 2026-10-21: 19 entries).
 
 ## Next
 
