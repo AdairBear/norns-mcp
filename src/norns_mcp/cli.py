@@ -35,9 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument(
         "--live", action="store_true", help="allow writes (each also needs --confirm)"
     )
-    mode.add_argument(
-        "--dry-run", action="store_true", help="never write, even if NORNS_MCP_LIVE=1"
-    )
+    mode.add_argument("--dry-run", action="store_true", help="never write (the default)")
     p.add_argument("--json", action="store_true", help="print the full JSON result")
     sub = p.add_subparsers(dest="cmd", required=True)
 

@@ -1,7 +1,8 @@
 """Settings: where the norns is, the live gate, local folders.
 
 Safety defaults:
-- ``live`` is False unless ``--live`` or ``NORNS_MCP_LIVE=1`` is given. Without it every
+- ``live`` is False unless the ``--live`` flag is given (the only switch; Thomas,
+  2026-10-20: no environment variable turns it on). Without it every
   write action (load, stop, set param, key/enc, deploy) is a dry run that reports what it
   would send and sends nothing. With it, each write call still needs ``confirm=True``.
 - SSH goes through the ``Host norns`` entry in ``~/.ssh/config`` (key in the keychain),
@@ -14,7 +15,6 @@ import os
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-LIVE_ENV = "NORNS_MCP_LIVE"
 HOST_ENV = "NORNS_MCP_HOST"
 SSH_ALIAS_ENV = "NORNS_MCP_SSH"
 STATE_DIR_ENV = "NORNS_MCP_STATE_DIR"
@@ -34,10 +34,6 @@ REMOTE_BACKUPS = f"{REMOTE_HOME}/norns-mcp-backups"
 REMOTE_SCREENSHOT = "/tmp/norns-mcp-screen.png"
 
 LOG_UNITS = ("matron", "crone", "sclang", "maiden", "jack", "watcher")
-
-
-def _truthy(raw: str | None) -> bool:
-    return (raw or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def default_state_dir() -> Path:
@@ -74,7 +70,6 @@ class Settings:
         """Build settings from the environment. ``overrides`` win (e.g. live=True from --live)."""
         env = dict(os.environ) if env is None else env
         settings = cls(
-            live=_truthy(env.get(LIVE_ENV)),
             host=env.get(HOST_ENV) or DEFAULT_HOST,
             ssh_alias=env.get(SSH_ALIAS_ENV) or DEFAULT_SSH_ALIAS,
             state_dir=(

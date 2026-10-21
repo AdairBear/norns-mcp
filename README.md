@@ -13,7 +13,7 @@ Private, local-only repo. An AdairHub node; shares its device core with `m8-mcp`
 
 ## Safety
 
-- Writes are **dry runs** unless the server/CLI is started with `--live` (or `NORNS_MCP_LIVE=1`),
+- Writes are **dry runs** unless the server/CLI is started with `--live` (the only switch; no env var),
   and even then each call needs `confirm=true` (`--confirm` on the CLI). A dry run returns
   `data.would_send` (the exact Lua / OSC / rsync) and sends nothing.
 - No sudo, no system or firmware commands, nothing that deletes on the norns: every remote command

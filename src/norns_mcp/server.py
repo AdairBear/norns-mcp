@@ -201,11 +201,9 @@ def main(
     mode.add_argument(
         "--live",
         action="store_true",
-        help="allow writes (or NORNS_MCP_LIVE=1); each write still needs confirm=true",
+        help="allow writes; each write still needs confirm=true",
     )
-    mode.add_argument(
-        "--dry-run", action="store_true", help="no writes, even if NORNS_MCP_LIVE is set"
-    )
+    mode.add_argument("--dry-run", action="store_true", help="no writes (the default)")
     args = parser.parse_args(argv)
     logging.basicConfig(stream=sys.stderr, level=logging.INFO, format="%(levelname)s %(message)s")
     settings = Settings.from_env(live=False if args.dry_run else (True if args.live else None))

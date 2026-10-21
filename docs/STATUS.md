@@ -1,6 +1,6 @@
 # norns-mcp v0.1: status
 
-**Last updated:** 2026-10-20 19:21 PDT (2026-10-21 02:21 UTC; the norns clock is BST). Read hourly
+**Last updated:** 2026-10-20 23:07 PDT (2026-10-21 06:07 UTC; the norns clock is BST). Read hourly
 by Thomas's checker. Local git only (`main`, no remote). norns-mcp has never sent a live write to
 the norns: every write so far has been a dry run.
 
@@ -50,13 +50,15 @@ is not copied.
 
 **Someone else is using the norns.** junglebreaks was updated on it (2 files changed, 21 new) after the
 10-19 backup. Scripts are being loaded (junglebreaks, then makebreakbeat), and the output level changed.
-norns-mcp did none of this. Also running on the norns, untouched: the old
-`python3 -m norns_mcp.main` from the iMac project (up 1 day) and `picoclaw`. Probably the junglebreaks
-build or Thomas; not confirmed.
+norns-mcp did none of this. Thomas confirmed it was the junglebreaks session plus Thomas himself.
+
+**The old iMac norns-mcp server is still running on the norns** (`python3 -m norns_mcp.main`,
+`~/norns-mcp-server`, up about 1 day), next to `picoclaw`. Leave it alone: stopping it needs
+Thomas's OK.
 
 ## Next
 
-1. Thomas OKs L1, and confirms no one is playing the norns at that moment.
+1. L1 tomorrow with Thomas present. If it passes, register norns-mcp in Claude Code (dry run).
 2. After L1, the tests in docs/THOMAS_AT_THE_NORNS.md, each with its own OK: set a param and set it
    back, a screenshot, key/encoder over OSC, deploying a new test folder.
 3. Not v0.1: extract the shared core package with m8-mcp (docs/CORE.md).
@@ -89,11 +91,10 @@ cd ~/Developer/norns-mcp
 
 ## Waiting on Thomas
 
-1. **OK for L1** above, at a time when nobody is using the norns.
-2. `NORNS_MCP_LIVE=1` works like `--live` (confirm is still needed). Keep it or remove it?
-3. Should norns-mcp copy junglebreaks' current version from the norns to the Mac? It's read-only;
-   that version has no backup from this tool.
-4. Should norns-mcp be registered in Claude Code (in dry-run mode)? That changes your Claude config.
+1. **OK for L1** above. Thomas: L1 is tomorrow, with him present. No live writes overnight.
+2. ~~Second live switch~~: decided 2026-10-20, removed. `--live` is the only switch.
+3. ~~junglebreaks copy~~: decided, not needed (v6 is backed up separately).
+4. ~~Claude Code registration~~: decided, YES in dry-run mode, **after L1 passes**.
 
 ## Process note
 
