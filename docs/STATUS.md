@@ -1,6 +1,6 @@
 # norns-mcp v0.1: status
 
-**Last updated:** 2026-10-22 22:14 PDT (2026-10-23 05:14 UTC; the norns clock is BST). Read hourly
+**Last updated:** 2026-10-22 22:29 PDT (2026-10-23 05:29 UTC; the norns clock is BST). Read hourly
 by Thomas's checker. Local git only (`main`, no remote). norns-mcp has never sent a live write to
 the norns: every write so far has been a dry run.
 
@@ -64,6 +64,22 @@ Thomas's OK.
 - Keep this file current and commit it at every milestone; an hourly checker reads it.
 - Append to docs/LEARNINGS.md on any mistake, blocked action, fix that took 3+ tries, or device
   quirk (backfilled 2026-10-21: 19 entries).
+
+## Live test L1 (2026-10-22 22:27 PDT, Thomas present)
+
+| # | Step | Result |
+|---|---|---|
+| 0 | Reachable: wifi <lan-ip>, SSH, REPL, maiden v1.1.6, 6/6 services | PASS |
+| 1 | `load awake` (replaced junglebreaks); load check read `# script init` from the real journal | PASS (MCP side) |
+| 2 | Read state + params: running awake, 109 params | PASS |
+| 3 | Set `cutoff` 800→3000 Hz and `root_note` C3→G3, read back, then reverted; screenshot showed awake's sequencer playing | PASS (MCP side) |
+| 4 | `stop`: script none, engine freed | PASS (MCP side) |
+| 5 | Soft restart over SSH (ordered stop incl. JACK, then start) | NOT RUN: denied by the session's permission classifier (sudo on the norns) |
+| 6 | Read state after | NOT RUN: the session then denied further SSH calls |
+
+Audible results (melody, brighter tone + higher key, silence) are waiting on Thomas's report.
+L1 load/set/stop has passed on the MCP side, so the Claude Code registration (dry run) can go ahead
+once Thomas confirms what he heard.
 
 ## Restart hang (diagnosed 2026-10-22, read-only)
 
