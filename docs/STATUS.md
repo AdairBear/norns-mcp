@@ -1,6 +1,6 @@
 # norns-mcp v0.1: status
 
-**Last updated:** 2026-10-21 15:31 PDT (2026-10-21 22:31 UTC; the norns clock is BST). Read hourly
+**Last updated:** 2026-10-22 22:14 PDT (2026-10-23 05:14 UTC; the norns clock is BST). Read hourly
 by Thomas's checker. Local git only (`main`, no remote). norns-mcp has never sent a live write to
 the norns: every write so far has been a dry run.
 
@@ -64,6 +64,17 @@ Thomas's OK.
 - Keep this file current and commit it at every milestone; an hourly checker reads it.
 - Append to docs/LEARNINGS.md on any mistake, blocked action, fix that took 3+ tries, or device
   quirk (backfilled 2026-10-21: 19 entries).
+
+## Restart hang (diagnosed 2026-10-22, read-only)
+
+- SYSTEM > RESTART breaks JACK on this unit; it happened at both recent hangs. Details in
+  docs/LEARNINGS.md. Not caused by junglebreaks.
+- SSH stayed up during the hang (the journal kept writing), so recovery over SSH works without
+  pulling power.
+- Proposed (needs Thomas's decision): a clean `sudo reboot` over SSH when it hangs. norns-mcp's
+  no-sudo rule means Thomas runs it, or approves one narrow gated "reboot/restart audio stack"
+  tool. A norns update (231114 → 260102 / v2.9.4 stable; v3.x exists) is Thomas's call: no
+  release note mentions this bug, and his early Pi 4 runs the stock RPi kernel.
 
 ## Next
 
