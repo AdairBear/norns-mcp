@@ -1,6 +1,6 @@
 # norns-mcp v0.1: status
 
-**Last updated:** 2026-10-22 22:29 PDT (2026-10-23 05:29 UTC; the norns clock is BST). Read hourly
+**Last updated:** 2026-10-22 22:56 PDT (2026-10-23 05:56 UTC; the norns clock is BST). Read hourly
 by Thomas's checker. Local git only (`main`, no remote). norns-mcp has never sent a live write to
 the norns: every write so far has been a dry run.
 
@@ -77,9 +77,14 @@ Thomas's OK.
 | 5 | Soft restart over SSH (ordered stop incl. JACK, then start) | NOT RUN: denied by the session's permission classifier (sudo on the norns) |
 | 6 | Read state after | NOT RUN: the session then denied further SSH calls |
 
-Audible results (melody, brighter tone + higher key, silence) are waiting on Thomas's report.
-L1 load/set/stop has passed on the MCP side, so the Claude Code registration (dry run) can go ahead
-once Thomas confirms what he heard.
+**Sound not confirmed by ear.** Thomas saw awake's melody on the screen but didn't confirm the audio
+("I bet it was working fine"). The audio path (melody, the param changes, silence after stop) is
+therefore unverified by ear; the MCP-side checks and the screenshot passed.
+
+**Registered in Claude Code (2026-10-22, Thomas's OK):** user scope, stdio,
+`~/Developer/norns-mcp/.venv/bin/norns-mcp --dry-run`. `claude mcp get norns-mcp` shows
+Connected. `--dry-run` is explicit, so every write tool is a dry run in Claude Code. Remove with
+`claude mcp remove norns-mcp -s user`.
 
 ## Restart hang (diagnosed 2026-10-22, read-only)
 
@@ -94,7 +99,7 @@ once Thomas confirms what he heard.
 
 ## Next
 
-1. L1 tomorrow with Thomas present. If it passes, register norns-mcp in Claude Code (dry run).
+1. ~~L1~~ done 2026-10-22 (sound not confirmed by ear); registered in Claude Code (dry run). Still open: the soft restart (step 5), which Thomas runs himself or allows with a permission rule.
 2. After L1, the tests in docs/THOMAS_AT_THE_NORNS.md, each with its own OK: set a param and set it
    back, a screenshot, key/encoder over OSC, deploying a new test folder.
 3. Not v0.1: extract the shared core package with m8-mcp (docs/CORE.md).
@@ -132,7 +137,7 @@ cd ~/Developer/norns-mcp
 1. **OK for L1** above. Thomas: L1 is tomorrow, with him present. No live writes overnight.
 2. ~~Second live switch~~: decided 2026-10-20, removed. `--live` is the only switch.
 3. ~~junglebreaks copy~~: decided, not needed (v6 is backed up separately).
-4. ~~Claude Code registration~~: decided, YES in dry-run mode, **after L1 passes**.
+4. ~~Claude Code registration~~: done 2026-10-22, dry-run mode.
 5. Multi-script open questions (docs/MULTI-SCRIPT.md): performance or composition; which clock
    leads (and is Link OK); which crow/ii gear; OK to trial an nb voice mod later (a live write).
 
