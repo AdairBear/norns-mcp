@@ -1,7 +1,9 @@
 # norns-mcp
 
 MCP server and CLI (`nornsctl`) for a monome norns on the local network. v0.1.
-Private, local-only repo. An AdairHub node; shares its device core with `m8-mcp` (see docs/CORE.md).
+> **Status: work in progress, building in public.** v0.1 works against a real norns; expect breaking changes.
+
+Shares its device core design with [`m8-mcp`](https://github.com/AdairBear/m8-mcp) (see docs/CORE.md).
 
 ## What it does
 
@@ -36,7 +38,7 @@ uv sync
 .venv/bin/nornsctl inventory --compare-backup --hashes
 .venv/bin/nornsctl --live screenshot --confirm   # gated: writes one /tmp file on the norns
 .venv/bin/nornsctl load awake        # DRY RUN
-.venv/bin/nornsctl --live load awake --confirm    # real (ask Thomas first)
+.venv/bin/nornsctl --live load awake --confirm    # real (check nobody else is playing first)
 .venv/bin/nornsctl deploy ~/path/to/myscript      # DRY RUN plan
 ```
 
@@ -46,3 +48,15 @@ Not registered in any client yet.
 ## Tests
 
 `uv run pytest` (fakes, no device). `uv run pytest -m device` (read-only, real norns).
+
+## Roadmap
+
+- [ ] Verify every live write on hardware (keys, encoders, OSC `/param` path)
+- [ ] Extract the shared device core into a package used by norns-mcp and m8-mcp
+- [ ] Safe recovery from the SYSTEM > RESTART / JACK hang over SSH
+- [ ] Multi-script coordination from the host (see docs/MULTI-SCRIPT.md)
+- [ ] Packaging and a one-line install for other norns owners
+
+## Licence
+
+MIT, see [LICENSE](LICENSE).
